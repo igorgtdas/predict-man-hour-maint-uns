@@ -1,0 +1,35 @@
+# Copie para config.yaml e ajuste os caminhos.
+# cp config.example.yaml config.yaml
+# config.yaml não é versionado (evita expor caminhos locais).
+
+paths:
+  project_root: "."
+  unscheduled_all: "data/raw/Events_Unscheduled/all"
+  unscheduled_2021: "data/raw/Events_Unscheduled/2021"
+  unscheduled_csv: "data/processed/bd_unscheduled_itens.csv"
+  utilization_dir: "data/raw/Utilization/Aircraft utilization"
+  data_processed: "data/processed"
+  dataset_semanal: "data/processed/dataset_uti_vs_hh_semanal.csv"
+  dataset_diario: "data/processed/dataset_uti_vs_hh.csv"
+  models_dir: "models"
+
+data_pipeline:
+  encoding: "ISO-8859-1"
+  required_columns: ["date", "acft", "sum_daily_hours", "age_fleet", "Cycles", "sum_uti_mensal", "HH"]
+  min_date: "2014-12-31"
+  ac_type_filter: "B737NG"
+
+training:
+  features_4: ["acft", "sum_daily_hours", "Cycles", "sum_uti_mensal"]
+  features_5: ["acft", "sum_daily_hours", "Cycles", "sum_uti_mensal", "age_fleet"]
+  target: "HH"
+  test_size: 0.25
+  validation_split: 0.2
+  random_state: 42
+  epochs: 10
+  batch_size: 50
+  units: [100, 100]
+
+mlops:
+  production_version: "latest"
+  registry_file: "models/registry.json"

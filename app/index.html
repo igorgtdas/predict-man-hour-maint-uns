@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Previsão HH — TCC Boeing 737NG</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      max-width: 480px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      background: #f5f5f5;
+    }
+    h1 {
+      font-size: 1.25rem;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+    .sub {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 1.25rem;
+    }
+    form {
+      background: #fff;
+      padding: 1.25rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .field {
+      margin-top: 1rem;
+    }
+    .field:first-child { margin-top: 0; }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 0.25rem;
+    }
+    .label-row {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .label-row label { margin-bottom: 0; }
+    .info-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.1rem;
+      height: 1.1rem;
+      border-radius: 50%;
+      background: #2563eb;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: help;
+      flex-shrink: 0;
+    }
+    .info-icon:hover + .info-tooltip,
+    .info-icon:focus + .info-tooltip,
+    .info-wrap.show .info-tooltip { opacity: 1; visibility: visible; }
+    .info-tooltip {
+      position: absolute;
+      left: 1.5rem;
+      top: 0;
+      min-width: 260px;
+      max-width: 320px;
+      padding: 0.6rem 0.75rem;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 0.75rem;
+      font-weight: 400;
+      line-height: 1.4;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 10;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.15s, visibility 0.15s;
+      pointer-events: none;
+    }
+    .info-tooltip strong { color: #fff; }
+    input {
+      width: 100%;
+      padding: 0.5rem 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      margin-top: 0.2rem;
+    }
+    input:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.15);
+    }
+    button {
+      width: 100%;
+      margin-top: 1.25rem;
+      padding: 0.65rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #fff;
+      background: #2563eb;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+    #result {
+      margin-top: 1.25rem;
+      padding: 1rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      display: none;
+    }
+    #result.success { background: #dcfce7; color: #166534; display: block; }
+    #result.error { background: #fee2e2; color: #991b1b; display: block; }
+    #result .value { font-size: 1.5rem; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1>Previsão de HH (Horas-Homem)</h1>
+  <p class="sub">Manutenção não programada — frota Boeing 737NG (modelo semanal, 5 variáveis)</p>
+
+  <form id="form" onsubmit="return predict(event)">
+    <div class="field">
+      <div class="label-row">
+        <label for="acft">acft — quantidade de aeronaves operacionais na semana</label>
+        <span class="info-wrap">
+          <span class="info-icon" tabindex="0" aria-label="Como obter este valor">i</span>
+          <span class="info-tooltip">
+            <strong>Como obter:</strong> Use a base de utilização das aeronaves (UDA). Conte quantas aeronaves (prefixos A/C distintos) realizaram ao menos um voo na janela de 7 dias. No dataset do modelo, esse valor é a contagem de “acft” por semana após o join com itens não programados — ou seja, só entram aviões que estiveram em operação naquela semana.
+          </span>
+        </span>
+      </div>
+      <input type="number" id="acft" name="acft" step="1" min="0" required placeholder="ex: 260">
+    </div>
+
+    <div class="field">
+      <div class="label-row">
+        <label for="sum_daily_hours">sum_daily_hours — total de horas voadas pela frota na semana</label>
+        <span class="info-wrap">
+          <span class="info-icon" tabindex="0" aria-label="Como obter este valor">i</span>
+          <span class="info-tooltip">
+            <strong>Como obter:</strong> Na base UDA, use o campo “horas” (horas operadas por dia por aeronave), convertido para horas decimais. Agrupe por data e aeronave, somando as horas do dia. Depois agrupe por janela de 7 dias e some as horas de toda a frota operacional nessa semana. Unidade: horas decimais.
+          </span>
+        </span>
+      </div>
+      <input type="number" id="sum_daily_hours" name="sum_daily_hours" step="0.01" min="0" required placeholder="ex: 2200">
+    </div>
+
+    <div class="field">
+      <div class="label-row">
+        <label for="Cycles">Cycles — total de ciclos da frota na semana</label>
+        <span class="info-wrap">
+          <span class="info-icon" tabindex="0" aria-label="Como obter este valor">i</span>
+          <span class="info-tooltip">
+            <strong>Como obter:</strong> Na base de utilização (UDA), o campo “ciclos” é a quantidade de voos (decolagem/aterrissagem) no dia por aeronave. Agrupe por data e aeronave (soma de ciclos no dia), depois por janela de 7 dias somando os ciclos de todas as aeronaves operacionais na semana.
+          </span>
+        </span>
+      </div>
+      <input type="number" id="Cycles" name="Cycles" step="1" min="0" required placeholder="ex: 1500">
+    </div>
+
+    <div class="field">
+      <div class="label-row">
+        <label for="sum_uti_mensal">sum_uti_mensal — soma das horas voadas pela frota no mês</label>
+        <span class="info-wrap">
+          <span class="info-icon" tabindex="0" aria-label="Como obter este valor">i</span>
+          <span class="info-tooltip">
+            <strong>Como obter:</strong> Mesma base UDA: para o mês civil correspondente à semana em análise, some todas as “horas” (já em decimal) voadas por toda a frota operacional nos 30 dias do mês. No pipeline do TCC isso é obtido com agrupamento por mês (Grouper freq='M') da coluna de horas diárias somadas.
+          </span>
+        </span>
+      </div>
+      <input type="number" id="sum_uti_mensal" name="sum_uti_mensal" step="0.01" min="0" required placeholder="ex: 9000">
+    </div>
+
+    <div class="field">
+      <div class="label-row">
+        <label for="age_fleet">age_fleet — idade da frota em horas (soma dos TAH na semana)</label>
+        <span class="info-wrap">
+          <span class="info-icon" tabindex="0" aria-label="Como obter este valor">i</span>
+          <span class="info-tooltip">
+            <strong>Como obter:</strong> Na UDA, “idade” é a idade da aeronave em horas totais de voo (TAH). Por dia e aeronave use o valor <strong>máximo</strong> de TAH do dia (último registro do dia). Depois, para cada janela de 7 dias, some o TAH de todas as aeronaves operacionais na semana. Unidade: horas decimais. No estudo, essa variável apresentou correlação fraca com HH; o Modelo_1 (sem age_fleet) teve melhor desempenho.
+          </span>
+        </span>
+      </div>
+      <input type="number" id="age_fleet" name="age_fleet" step="1" min="0" required placeholder="ex: 10000000">
+    </div>
+
+    <button type="submit" id="btn">Prever HH</button>
+  </form>
+
+  <div id="result" role="alert"></div>
+
+  <script>
+    document.querySelectorAll('.info-icon').forEach(function(icon) {
+      icon.addEventListener('click', function(e) {
+        e.preventDefault();
+        var wrap = this.closest('.info-wrap');
+        document.querySelectorAll('.info-wrap.show').forEach(function(w) { if (w !== wrap) w.classList.remove('show'); });
+        wrap.classList.toggle('show');
+      });
+    });
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.info-wrap')) document.querySelectorAll('.info-wrap.show').forEach(function(w) { w.classList.remove('show'); });
+    });
+
+    const form = document.getElementById('form');
+    const result = document.getElementById('result');
+    const btn = document.getElementById('btn');
+
+    async function predict(e) {
+      e.preventDefault();
+      result.className = '';
+      result.style.display = 'none';
+      result.textContent = '';
+      btn.disabled = true;
+
+      const payload = {
+        acft: Number(form.acft.value),
+        sum_daily_hours: Number(form.sum_daily_hours.value),
+        Cycles: Number(form.Cycles.value),
+        sum_uti_mensal: Number(form.sum_uti_mensal.value),
+        age_fleet: Number(form.age_fleet.value)
+      };
+
+      try {
+        const res = await fetch('/api/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          result.className = 'error';
+          result.innerHTML = 'Erro: ' + (data.error || res.statusText);
+          result.style.display = 'block';
+          result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          return false;
+        }
+
+        result.className = 'success';
+        result.innerHTML = 'HH previsto: <span class="value">' + data.HH + '</span> (homem-hora)';
+        result.style.display = 'block';
+        result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (err) {
+        result.className = 'error';
+        result.textContent = 'Erro de conexão: ' + err.message;
+        result.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+      }
+      return false;
+    }
+  </script>
+</body>
+</html>
